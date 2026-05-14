@@ -152,11 +152,42 @@ if st.button("🔄 Processar", type="primary"):
     mask_nao_encontrado = ~df_forn_valido["_codigo_limpo"].isin(refs_doit)
     df_precisam_criar = df_forn_valido[mask_nao_encontrado].copy()
 
-    # Produtos do DOit daquele fornecedor que NÃO foram atualizados
-    # (estão no DOit com esse fabricante, mas não vieram na planilha do fornecedor)
+    # Guardar no session_state para uso após seleção do fabricante
+    st.session_state["df_merge_raw"] = df_merge
+    st.session_state["df_forn_valido"] = df_forn_valido
+    st.session_state["df_precisam_criar"] = df_precisam_criar
+    st.session_state["processado"] = True
+
+# --- Seleção do fabricante e resultados ---
+if st.session_state.get("processado", False):
+    df_merge = st.session_state["df_merge_raw"]
+    df_precisam_criar = st.session_state["df_precisam_criar"]
+
     if not df_merge.empty:
-        # Identificar o fabricante correto pela moda (o que mais aparece no merge)
-        id_fabricante = df_merge["Id do Fabricante"].dropna().mode().iloc[0]
+        # Listar fabricantes encontrados no merge
+        fabricantes_encontrados = (
+            df_merge[["Id do Fabricante", "Fabricante"]]
+            .dropna(subset=["Id do Fabricante"])
+            .drop_duplicates()
+        )
+        fabricantes_encontrados["_label"] = (
+            fabricantes_encontrados["Fabricante"].astype(str)
+            + " (ID: "
+            + fabricantes_encontrados["Id do Fabricante"].astype(int).astype(str)
+            + ")"
+        )
+
+        opcoes = fabricantes_encontrados["_label"].tolist()
+
+        fabricante_escolhido = st.selectbox(
+            "⚠️ Selecione o fabricante correto para esta planilha:",
+            options=opcoes,
+            help="O cruzamento encontrou produtos em mais de um fabricante. Escolha o correto.",
+        )
+
+        # Pegar o Id do fabricante selecionado
+        idx_selecionado = opcoes.index(fabricante_escolhido)
+        id_fabricante = fabricantes_encontrados.iloc[idx_selecionado]["Id do Fabricante"]
 
         # Filtrar o merge para manter apenas produtos desse fabricante
         df_merge = df_merge[df_merge["Id do Fabricante"] == id_fabricante].copy()
@@ -222,6 +253,7 @@ if st.button("🔄 Processar", type="primary"):
         df_produtos_doit = pd.DataFrame()
 
     # Aba "Produtos" - planilha do fornecedor original
+    df_forn_valido = st.session_state["df_forn_valido"]
     df_produtos_forn = df_forn_valido.drop(
         columns=["_codigo_limpo", "_preco_limpo"], errors="ignore"
     )
