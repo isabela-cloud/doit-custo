@@ -510,4 +510,42 @@ if st.session_state.get("processado", False):
             use_container_width=True,
         )
 
+    # ─── Registro para planilha de controle ───────────────────────────────────
+    st.divider()
+    st.markdown('<div class="section-header">📝 Registro (planilha de controle)</div>', unsafe_allow_html=True)
 
+    col_reg1, col_reg2 = st.columns(2)
+
+    with col_reg1:
+        responsavel = st.text_input("Responsável", value="Isabela Silva")
+        caracteristicas = st.text_input("Características do fornecedor", value="", placeholder="Ex: Muitos acabamentos, cód diferente...")
+        dificuldade = st.selectbox("Dificuldade", options=["Fácil", "Médio", "Fácil/Médio", "Médio/Difícil", "Difícil"])
+
+    with col_reg2:
+        ipi_texto = f"{ipi}" if ipi > 0 else "Não tem"
+        muitas_abas = "TRUE" if len(nomes_abas) > 1 else "FALSE"
+        formulas_usadas = st.text_input("Fórmulas/Observações", value="", placeholder="Ex: Procv e ses junto")
+        colunas_usar = st.text_input("Colunas usadas", value="", placeholder="Ex: Referência, Prç.ven, ICMS e IPI")
+
+    # Linha formatada para colar no Sheets (tab-separated)
+    linha_sheets = (
+        f"{nome_fornecedor}\t"
+        f"{len(df_merge)}\t"
+        f"{len(df_precisam_criar)}\t"
+        f"{len(df_nao_atualizados)}\t"
+        f"{date.today().strftime('%d/%m/%Y')}\t"
+        f"{responsavel}\t"
+        f"{caracteristicas}\t"
+        f"{ipi_texto}\t"
+        f"{dificuldade}\t"
+        f"{formulas_usadas}\t"
+        f"{colunas_usar}\t"
+        f"{muitas_abas}"
+    )
+
+    st.text_area(
+        "Copie e cole na planilha de controle (Sheets):",
+        value=linha_sheets,
+        height=80,
+        help="Selecione tudo, copie (Ctrl+C) e cole na próxima linha da planilha do Google Sheets.",
+    )
