@@ -138,20 +138,12 @@ with col4:
     col_preco = st.selectbox("Coluna do PREÇO", options=colunas_forn)
 
 with col5:
-    usar_col_valor = st.checkbox("Valor em coluna separada?", value=False,
-                                  help="Marque se o R$ está em uma coluna e o número em outra")
-
-with col6:
     ipi = st.number_input("IPI (%)", min_value=0.0, max_value=100.0, value=0.0, step=0.25)
-
-col_valor_separado = None
-if usar_col_valor:
-    col_valor_separado = st.selectbox("Coluna com o VALOR numérico", options=colunas_forn)
 
 # ─── Opções avançadas ─────────────────────────────────────────────────────────
 st.markdown('<div class="section-header">🔧 Opções de compatibilização</div>', unsafe_allow_html=True)
 
-col_opt1, col_opt2 = st.columns(2)
+col_opt1, col_opt2, col_opt3 = st.columns(3)
 
 with col_opt1:
     normalizar_codigos = st.checkbox(
@@ -166,6 +158,17 @@ with col_opt2:
         value=False,
         help="Para fornecedores onde o código está dividido em duas colunas (ex: Spotline: ID + primeira palavra da descrição).",
     )
+
+with col_opt3:
+    usar_col_valor = st.checkbox(
+        "💲 Valor em coluna separada",
+        value=False,
+        help="Marque se o R$ está em uma coluna e o número em outra.",
+    )
+
+col_valor_separado = None
+if usar_col_valor:
+    col_valor_separado = st.selectbox("Coluna com o VALOR numérico", options=colunas_forn)
 
 col_concat_segunda = None
 if concatenar_colunas:
