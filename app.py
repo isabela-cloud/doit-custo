@@ -115,6 +115,30 @@ col_valor_separado = None
 if usar_col_valor:
     col_valor_separado = st.selectbox("Coluna com o VALOR numérico", options=colunas_forn)
 
+# --- Seleção do fabricante ---
+fabricantes_doit = (
+    df_doit[["Id do Fabricante", "Fabricante"]]
+    .dropna(subset=["Id do Fabricante"])
+    .drop_duplicates()
+    .sort_values("Fabricante")
+    .reset_index(drop=True)
+)
+fabricantes_doit["_label"] = (
+    fabricantes_doit["Fabricante"].astype(str)
+    + " (ID: "
+    + fabricantes_doit["Id do Fabricante"].astype(int).astype(str)
+    + ")"
+)
+
+fabricante_escolhido = st.selectbox(
+    "Fabricante (selecione o fornecedor correspondente no DOit):",
+    options=fabricantes_doit["_label"].tolist(),
+    help="Escolha o fabricante cadastrado no DOit que corresponde a esta planilha.",
+)
+
+idx_selecionado = fabricantes_doit["_label"].tolist().index(fabricante_escolhido)
+id_fabricante = fabricantes_doit.iloc[idx_selecionado]["Id do Fabricante"]
+
 st.write("**Planilha do fornecedor (com cabeçalho aplicado):**")
 st.dataframe(df_forn.head(10), use_container_width=True)
 
@@ -190,45 +214,18 @@ if st.session_state.get("processado", False):
     df_merge = st.session_state["df_merge_raw"]
     df_precisam_criar = st.session_state["df_precisam_criar"]
 
+    # Filtrar o merge para manter apenas produtos do fabricante selecionado
     if not df_merge.empty:
-        # Listar fabricantes encontrados no merge
-        fabricantes_encontrados = (
-            df_merge[["Id do Fabricante", "Fabricante"]]
-            .dropna(subset=["Id do Fabricante"])
-            .drop_duplicates()
-        )
-        fabricantes_encontrados["_label"] = (
-            fabricantes_encontrados["Fabricante"].astype(str)
-            + " (ID: "
-            + fabricantes_encontrados["Id do Fabricante"].astype(int).astype(str)
-            + ")"
-        )
-
-        opcoes = fabricantes_encontrados["_label"].tolist()
-
-        fabricante_escolhido = st.selectbox(
-            "⚠️ Selecione o fabricante correto para esta planilha:",
-            options=opcoes,
-            help="O cruzamento encontrou produtos em mais de um fabricante. Escolha o correto.",
-        )
-
-        # Pegar o Id do fabricante selecionado
-        idx_selecionado = opcoes.index(fabricante_escolhido)
-        id_fabricante = fabricantes_encontrados.iloc[idx_selecionado]["Id do Fabricante"]
-
-        # Filtrar o merge para manter apenas produtos desse fabricante
         df_merge = df_merge[df_merge["Id do Fabricante"] == id_fabricante].copy()
 
-        # Todos os produtos desse fabricante no Doit
-        df_fabricante_doit = df_doit[df_doit["Id do Fabricante"] == id_fabricante].copy()
-        # Refs que foram atualizadas
-        refs_atualizadas = set(df_merge["# Referência"].astype(str).str.strip())
-        # Não atualizados = fabricante no Doit - atualizados
-        df_nao_atualizados = df_fabricante_doit[
-            ~df_fabricante_doit["# Referência"].isin(refs_atualizadas)
-        ].copy()
-    else:
-        df_nao_atualizados = pd.DataFrame()
+    # Todos os produtos desse fabricante no Doit
+    df_fabricante_doit = df_doit[df_doit["Id do Fabricante"] == id_fabricante].copy()
+    # Refs que foram atualizadas
+    refs_atualizadas = set(df_merge["# Referência"].astype(str).str.strip()) if not df_merge.empty else set()
+    # Não atualizados = fabricante no Doit - atualizados
+    df_nao_atualizados = df_fabricante_doit[
+        ~df_fabricante_doit["# Referência"].isin(refs_atualizadas)
+    ].copy()
 
     # --- Cálculos ---
     # Custo Líquido = Valor fornecedor * 1.10
