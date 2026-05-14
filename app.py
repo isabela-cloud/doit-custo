@@ -37,10 +37,15 @@ arquivo_fornecedor = st.file_uploader(
 if arquivo_fornecedor is None:
     st.stop()
 
-# Ler todas as linhas sem header para o usuário escolher
-df_raw = pd.read_excel(arquivo_fornecedor, header=None)
+# Ler todas as abas do arquivo do fornecedor
+todas_abas = pd.read_excel(arquivo_fornecedor, header=None, sheet_name=None)
+nomes_abas = list(todas_abas.keys())
 
-st.write("**Pré-visualização (primeiras 15 linhas):**")
+st.info(f"📑 Abas encontradas: {', '.join(nomes_abas)} ({len(nomes_abas)} aba{'s' if len(nomes_abas) > 1 else ''})")
+
+# Pré-visualização da primeira aba
+df_raw = todas_abas[nomes_abas[0]]
+st.write("**Pré-visualização da primeira aba (primeiras 15 linhas):**")
 st.dataframe(df_raw.head(15), use_container_width=True)
 
 # --- Configuração do fornecedor ---
@@ -58,11 +63,17 @@ with col1:
         help="Indique em qual linha estão os nomes das colunas",
     )
 
-# Recarregar com header correto
-df_forn = pd.read_excel(arquivo_fornecedor, header=int(linha_header))
-df_forn.columns = [str(c).strip() for c in df_forn.columns]
+# Recarregar todas as abas com header correto e concatenar
+dfs_abas = []
+for nome_aba in nomes_abas:
+    df_aba = pd.read_excel(arquivo_fornecedor, header=int(linha_header), sheet_name=nome_aba)
+    df_aba.columns = [str(c).strip() for c in df_aba.columns]
+    df_aba["_aba_origem"] = nome_aba
+    dfs_abas.append(df_aba)
 
-colunas_forn = list(df_forn.columns)
+df_forn = pd.concat(dfs_abas, ignore_index=True)
+
+colunas_forn = [c for c in df_forn.columns if c != "_aba_origem"]
 
 with col2:
     nome_fornecedor = st.text_input(
@@ -255,12 +266,12 @@ if st.session_state.get("processado", False):
     # Aba "Produtos" - planilha do fornecedor original
     df_forn_valido = st.session_state["df_forn_valido"]
     df_produtos_forn = df_forn_valido.drop(
-        columns=["_codigo_limpo", "_preco_limpo"], errors="ignore"
+        columns=["_codigo_limpo", "_preco_limpo", "_aba_origem"], errors="ignore"
     )
 
     # Aba "Precisam ser criados" - formato do fornecedor
     df_criar_saida = df_precisam_criar.drop(
-        columns=["_codigo_limpo", "_preco_limpo"], errors="ignore"
+        columns=["_codigo_limpo", "_preco_limpo", "_aba_origem"], errors="ignore"
     )
 
     # --- Exibição ---
