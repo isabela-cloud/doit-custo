@@ -167,8 +167,9 @@ with col_opt3:
     usar_col_valor = st.checkbox(
         "💲 Valor em coluna separada",
         value=False,
-        help="Ex: Quando o fornecedor tem 'R$' em uma coluna e o valor numérico em outra. "
-             "Selecione a coluna com o número após ativar.",
+        help="Ex: Golden Art tem 'R$' em uma coluna e o valor numérico em outra. "
+             "Selecione a coluna com o número após ativar. "
+             "Usar com: Golden Art.",
     )
 
 col_valor_separado = None
