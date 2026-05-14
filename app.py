@@ -8,7 +8,6 @@ st.set_page_config(
     page_title="DOit - Atualização de Custos",
     page_icon="💰",
     layout="wide",
-    initial_sidebar_state="collapsed",
 )
 
 # ─── Estilo customizado ──────────────────────────────────────────────────────
@@ -17,16 +16,6 @@ st.markdown("""
     .main .block-container { padding-top: 1rem; max-width: 1200px; }
     h1 { color: #2c3e50; }
     .stTabs [data-baseweb="tab-list"] { gap: 1.5rem; }
-    .metric-card {
-        background: #f8f9fa;
-        border-radius: 10px;
-        padding: 1.2rem;
-        text-align: center;
-        border-left: 4px solid #e6a817;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    }
-    .metric-value { font-size: 1.8rem; font-weight: bold; color: #2c3e50; }
-    .metric-label { font-size: 0.8rem; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.5px; }
     .section-header {
         font-size: 1.1rem;
         font-weight: 600;
@@ -44,14 +33,6 @@ st.markdown("""
         font-size: 0.85rem;
         color: #1e40af;
         margin-bottom: 1rem;
-    }
-    .success-box {
-        background: #ecfdf5;
-        border-left: 4px solid #10b981;
-        border-radius: 6px;
-        padding: 0.8rem 1rem;
-        font-size: 0.85rem;
-        color: #065f46;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -76,10 +57,6 @@ except FileNotFoundError:
 # ─── Header ───────────────────────────────────────────────────────────────────
 st.title("💰 Atualização de Custos")
 st.markdown(f'<div class="info-box">📦 Base DOit carregada com <strong>{len(df_doit):,}</strong> produtos | {df_doit["Fabricante"].nunique()} fabricantes</div>', unsafe_allow_html=True)
-
-# ─── Sidebar: Configurações ──────────────────────────────────────────────────
-st.sidebar.title("⚙️ Configurações")
-st.sidebar.caption("Parâmetros de processamento")
 
 # ─── Upload ───────────────────────────────────────────────────────────────────
 st.divider()
@@ -428,7 +405,4 @@ if st.session_state.get("processado", False):
             use_container_width=True,
         )
 
-# ─── Footer ───────────────────────────────────────────────────────────────────
-st.sidebar.divider()
-st.sidebar.caption(f"Última atualização: {date.today().strftime('%d/%m/%Y')}")
-st.sidebar.caption("DOit - Atualização de Custos v2.0")
+
