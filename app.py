@@ -64,10 +64,24 @@ with col1:
     )
 
 # Recarregar todas as abas com header correto e concatenar
+# A primeira aba usa o header indicado; as demais usam os mesmos nomes de coluna
 dfs_abas = []
-for nome_aba in nomes_abas:
-    df_aba = pd.read_excel(arquivo_fornecedor, header=int(linha_header), sheet_name=nome_aba)
-    df_aba.columns = [str(c).strip() for c in df_aba.columns]
+df_primeira = pd.read_excel(arquivo_fornecedor, header=int(linha_header), sheet_name=nomes_abas[0])
+df_primeira.columns = [str(c).strip() for c in df_primeira.columns]
+df_primeira["_aba_origem"] = nomes_abas[0]
+dfs_abas.append(df_primeira)
+
+colunas_base = df_primeira.columns.drop("_aba_origem")
+
+for nome_aba in nomes_abas[1:]:
+    df_aba = pd.read_excel(arquivo_fornecedor, header=None, sheet_name=nome_aba)
+    # Aplicar os mesmos nomes de coluna da primeira aba
+    if len(df_aba.columns) >= len(colunas_base):
+        df_aba = df_aba.iloc[:, :len(colunas_base)]
+        df_aba.columns = colunas_base
+    else:
+        # Se tiver menos colunas, usar os nomes disponíveis
+        df_aba.columns = colunas_base[:len(df_aba.columns)]
     df_aba["_aba_origem"] = nome_aba
     dfs_abas.append(df_aba)
 
@@ -150,9 +164,11 @@ if st.button("🔄 Processar", type="primary"):
         & (df_forn_valido["_codigo_limpo"] != "")
     ]
 
-    # Cruzar com Doit pela referência
+    # Cruzar com Doit pela referência (usar apenas 1 preço por código do fornecedor)
+    df_forn_unico = df_forn_valido.drop_duplicates(subset=["_codigo_limpo"], keep="first")
+
     df_merge = df_doit.merge(
-        df_forn_valido[["_codigo_limpo", "_preco_limpo"]],
+        df_forn_unico[["_codigo_limpo", "_preco_limpo"]],
         left_on="# Referência",
         right_on="_codigo_limpo",
         how="inner",
