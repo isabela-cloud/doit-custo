@@ -149,6 +149,14 @@ col_valor_separado = None
 if usar_col_valor:
     col_valor_separado = st.selectbox("Coluna com o VALOR numérico", options=colunas_forn)
 
+# Opção de normalização de códigos
+normalizar_codigos = st.checkbox(
+    "🔄 Normalizar códigos (remover acabamentos e hifens)",
+    value=False,
+    help="Ative para fornecedores que enviam códigos com sufixo de acabamento (ex: RI-H54414-1-BFM). "
+         "Remove acabamentos e hifens para compatibilizar com o DOit.",
+)
+
 # ─── Seleção do fabricante ────────────────────────────────────────────────────
 fabricantes_doit = (
     df_doit[["Id do Fabricante", "Fabricante"]]
@@ -218,20 +226,70 @@ if st.button("▶️ Processar atualização", type="primary", use_container_wid
         & (df_forn_valido["_codigo_limpo"] != "")
     ]
 
-    # Cruzar com Doit pela referência (usar apenas 1 preço por código do fornecedor)
-    df_forn_unico = df_forn_valido.drop_duplicates(subset=["_codigo_limpo"], keep="first")
+    # Normalização de códigos (se ativada)
+    if normalizar_codigos:
+        import re
 
-    df_merge = df_doit.merge(
-        df_forn_unico[["_codigo_limpo", "_preco_limpo"]],
-        left_on="# Referência",
-        right_on="_codigo_limpo",
-        how="inner",
-    )
+        # Acabamentos conhecidos (Revoluz e similares)
+        _acabamentos = [
+            "BCO", "BCX", "BFM", "CRT", "DSB", "CRG", "GRM", "MCX",
+            "PTB", "PTO", "PTX", "VBE", "VCR", "VOC", "CORES",
+            "BR", "PT", "DO", "CR", "CZ", "VD", "AM", "AZ", "LR", "MR",
+        ]
 
-    # Produtos do fornecedor que NÃO estão no DOit (precisam ser criados)
-    refs_doit = set(df_doit["# Referência"].astype(str).str.strip())
-    mask_nao_encontrado = ~df_forn_valido["_codigo_limpo"].isin(refs_doit)
-    df_precisam_criar = df_forn_valido[mask_nao_encontrado].copy()
+        def remover_acabamento(codigo):
+            """Remove sufixos de acabamento do código do fornecedor."""
+            s = str(codigo).strip().upper()
+            partes = s.split("-")
+            while len(partes) > 1 and any(acab in partes[-1] for acab in _acabamentos + ["OU"]):
+                partes.pop()
+            return "-".join(partes)
+
+        def normalizar(codigo):
+            """Remove hifens, traços, barras e espaços para comparação."""
+            return re.sub(r"[-/\s]", "", str(codigo).strip().upper())
+
+        # Normalizar código do fornecedor: remover acabamento + remover hifens
+        df_forn_valido["_codigo_norm"] = df_forn_valido["_codigo_limpo"].apply(
+            lambda x: normalizar(remover_acabamento(x))
+        )
+
+        # Normalizar referências do DOit: remover hifens
+        df_doit["_ref_norm"] = df_doit["# Referência"].apply(normalizar)
+
+        # Cruzar usando códigos normalizados
+        df_forn_unico = df_forn_valido.drop_duplicates(subset=["_codigo_norm"], keep="first")
+
+        df_merge = df_doit.merge(
+            df_forn_unico[["_codigo_norm", "_preco_limpo", "_codigo_limpo"]],
+            left_on="_ref_norm",
+            right_on="_codigo_norm",
+            how="inner",
+        )
+
+        # Produtos do fornecedor que NÃO estão no DOit
+        refs_doit_norm = set(df_doit["_ref_norm"])
+        mask_nao_encontrado = ~df_forn_valido["_codigo_norm"].isin(refs_doit_norm)
+        df_precisam_criar = df_forn_valido[mask_nao_encontrado].copy()
+
+        # Limpar coluna auxiliar
+        df_doit.drop(columns=["_ref_norm"], inplace=True, errors="ignore")
+
+    else:
+        # Cruzar com Doit pela referência (usar apenas 1 preço por código do fornecedor)
+        df_forn_unico = df_forn_valido.drop_duplicates(subset=["_codigo_limpo"], keep="first")
+
+        df_merge = df_doit.merge(
+            df_forn_unico[["_codigo_limpo", "_preco_limpo"]],
+            left_on="# Referência",
+            right_on="_codigo_limpo",
+            how="inner",
+        )
+
+        # Produtos do fornecedor que NÃO estão no DOit (precisam ser criados)
+        refs_doit = set(df_doit["# Referência"].astype(str).str.strip())
+        mask_nao_encontrado = ~df_forn_valido["_codigo_limpo"].isin(refs_doit)
+        df_precisam_criar = df_forn_valido[mask_nao_encontrado].copy()
 
     # Guardar no session_state
     st.session_state["df_merge_raw"] = df_merge
@@ -296,7 +354,7 @@ if st.session_state.get("processado", False):
     # ─── Relatório ────────────────────────────────────────────────────────────
     if not df_merge.empty:
         df_produtos_doit = df_merge.drop(
-            columns=["_codigo_limpo", "_preco_limpo", "_custo_liquido", "_custo_bruto"],
+            columns=["_codigo_limpo", "_preco_limpo", "_custo_liquido", "_custo_bruto", "_codigo_norm", "_ref_norm"],
             errors="ignore",
         )
     else:
@@ -304,11 +362,11 @@ if st.session_state.get("processado", False):
 
     df_forn_valido = st.session_state["df_forn_valido"]
     df_produtos_forn = df_forn_valido.drop(
-        columns=["_codigo_limpo", "_preco_limpo", "_aba_origem"], errors="ignore"
+        columns=["_codigo_limpo", "_preco_limpo", "_aba_origem", "_codigo_norm"], errors="ignore"
     )
 
     df_criar_saida = df_precisam_criar.drop(
-        columns=["_codigo_limpo", "_preco_limpo", "_aba_origem"], errors="ignore"
+        columns=["_codigo_limpo", "_preco_limpo", "_aba_origem", "_codigo_norm"], errors="ignore"
     )
 
     # ─── Tabs de visualização ─────────────────────────────────────────────────
