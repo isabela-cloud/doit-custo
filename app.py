@@ -59,7 +59,7 @@ with col1:
         "Linha do cabeçalho (0 = primeira linha)",
         min_value=0,
         max_value=len(df_raw) - 1,
-        value=0,
+        value=1,
         help="Indique em qual linha estão os nomes das colunas",
     )
 
