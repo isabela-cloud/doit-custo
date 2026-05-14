@@ -235,6 +235,8 @@ st.markdown('<div class="section-header">🔄 Processamento</div>', unsafe_allow
 if st.button("▶️ Processar atualização", type="primary", use_container_width=True):
     # Limpar código do fornecedor
     df_forn["_codigo_limpo"] = df_forn[col_codigo].astype(str).str.strip()
+    # Remover .0 de números inteiros lidos como float (ex: 9766.0 -> 9766)
+    df_forn["_codigo_limpo"] = df_forn["_codigo_limpo"].str.replace(r"\.0$", "", regex=True)
 
     # Concatenar colunas se ativado (ex: Spotline: ID + primeira palavra da descrição)
     if concatenar_colunas and col_concat_segunda:
@@ -279,8 +281,13 @@ if st.button("▶️ Processar atualização", type="primary", use_container_wid
             return "-".join(partes)
 
         def normalizar(codigo):
-            """Remove hifens, traços, barras e espaços para comparação."""
-            return re.sub(r"[-/\s]", "", str(codigo).strip().upper())
+            """Remove prefixos de fabricante, hifens, traços, barras e espaços para comparação."""
+            s = str(codigo).strip().upper()
+            # Remover prefixos comuns de fabricante (ex: SL-, SP-)
+            s = re.sub(r"^[A-Z]{2,3}-", "", s)
+            # Remover hifens, barras e espaços
+            s = re.sub(r"[-/\s]", "", s)
+            return s
 
         # Normalizar código do fornecedor: remover acabamento + remover hifens
         df_forn_valido["_codigo_norm"] = df_forn_valido["_codigo_limpo"].apply(
