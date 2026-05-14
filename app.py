@@ -149,21 +149,26 @@ with col_opt1:
     normalizar_codigos = st.checkbox(
         "🔄 Normalizar códigos (remover acabamentos e hifens)",
         value=False,
-        help="Para fornecedores que enviam códigos com sufixo de acabamento (ex: RI-H54414-1-BFM).",
+        help="Ex: Revoluz envia 'RI-H54414-1-BFM OU PTO' e no DOit é 'RI-H54414-1'. "
+             "Remove sufixos de acabamento e hifens para compatibilizar. "
+             "Usar com: Revoluz, Revolux e similares.",
     )
 
 with col_opt2:
     concatenar_colunas = st.checkbox(
         "🔗 Concatenar colunas para formar código",
         value=False,
-        help="Para fornecedores onde o código está dividido em duas colunas (ex: Spotline: ID + primeira palavra da descrição).",
+        help="Ex: Spotline tem ID=84 e Descrição='385/2 PLAFON SMART...', no DOit é 'SL-84-385-2'. "
+             "Junta o ID + primeira palavra da descrição para formar o código completo. "
+             "Usar com: Spotline.",
     )
 
 with col_opt3:
     usar_col_valor = st.checkbox(
         "💲 Valor em coluna separada",
         value=False,
-        help="Marque se o R$ está em uma coluna e o número em outra.",
+        help="Ex: Quando o fornecedor tem 'R$' em uma coluna e o valor numérico em outra. "
+             "Selecione a coluna com o número após ativar.",
     )
 
 col_valor_separado = None
