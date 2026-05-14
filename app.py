@@ -3,10 +3,60 @@ import pandas as pd
 from datetime import date
 from io import BytesIO
 
-st.set_page_config(page_title="DOit - Atualização de Custos", layout="wide")
-st.title("📊 DOit - Atualização de Custos")
+# ─── Configuração da página ───────────────────────────────────────────────────
+st.set_page_config(
+    page_title="DOit - Atualização de Custos",
+    page_icon="💰",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
 
-# --- Carregar planilha DOit (fixa no servidor) ---
+# ─── Estilo customizado ──────────────────────────────────────────────────────
+st.markdown("""
+<style>
+    .main .block-container { padding-top: 1rem; max-width: 1200px; }
+    h1 { color: #2c3e50; }
+    .stTabs [data-baseweb="tab-list"] { gap: 1.5rem; }
+    .metric-card {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 1.2rem;
+        text-align: center;
+        border-left: 4px solid #e6a817;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .metric-value { font-size: 1.8rem; font-weight: bold; color: #2c3e50; }
+    .metric-label { font-size: 0.8rem; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.5px; }
+    .section-header {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #2c3e50;
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .info-box {
+        background: #eef6ff;
+        border-left: 4px solid #3b82f6;
+        border-radius: 6px;
+        padding: 0.8rem 1rem;
+        font-size: 0.85rem;
+        color: #1e40af;
+        margin-bottom: 1rem;
+    }
+    .success-box {
+        background: #ecfdf5;
+        border-left: 4px solid #10b981;
+        border-radius: 6px;
+        padding: 0.8rem 1rem;
+        font-size: 0.85rem;
+        color: #065f46;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# ─── Carregar planilha DOit ───────────────────────────────────────────────────
 CAMINHO_DOIT = "ListagemdeProdutos DOit.xlsx"
 
 
@@ -23,34 +73,46 @@ except FileNotFoundError:
     st.error("Arquivo 'ListagemdeProdutos DOit.xlsx' não encontrado na pasta do projeto.")
     st.stop()
 
-st.success(f"Planilha DOit carregada: {len(df_doit)} produtos")
+# ─── Header ───────────────────────────────────────────────────────────────────
+st.title("💰 Atualização de Custos")
+st.markdown(f'<div class="info-box">📦 Base DOit carregada com <strong>{len(df_doit):,}</strong> produtos | {df_doit["Fabricante"].nunique()} fabricantes</div>', unsafe_allow_html=True)
 
-# --- Upload da planilha do fornecedor ---
+# ─── Sidebar: Configurações ──────────────────────────────────────────────────
+st.sidebar.title("⚙️ Configurações")
+st.sidebar.caption("Parâmetros de processamento")
+
+# ─── Upload ───────────────────────────────────────────────────────────────────
 st.divider()
-st.subheader("1. Upload da planilha do fornecedor")
+st.markdown('<div class="section-header">📁 Upload da planilha do fornecedor</div>', unsafe_allow_html=True)
 
 arquivo_fornecedor = st.file_uploader(
-    "Arraste ou selecione a planilha do fornecedor (.xlsx, .xls)",
+    "Arraste ou selecione a planilha (.xlsx, .xls)",
     type=["xlsx", "xls"],
+    label_visibility="collapsed",
 )
 
 if arquivo_fornecedor is None:
     st.stop()
 
-# Ler todas as abas do arquivo do fornecedor
+# ─── Leitura de abas ─────────────────────────────────────────────────────────
 todas_abas = pd.read_excel(arquivo_fornecedor, header=None, sheet_name=None)
 nomes_abas = list(todas_abas.keys())
 
-st.info(f"📑 Abas encontradas: {', '.join(nomes_abas)} ({len(nomes_abas)} aba{'s' if len(nomes_abas) > 1 else ''})")
+st.markdown(
+    f'<div class="info-box">📑 Arquivo: <strong>{arquivo_fornecedor.name}</strong> — '
+    f'{len(nomes_abas)} aba{"s" if len(nomes_abas) > 1 else ""} encontrada{"s" if len(nomes_abas) > 1 else ""} '
+    f'({", ".join(nomes_abas)})</div>',
+    unsafe_allow_html=True,
+)
 
-# Pré-visualização da primeira aba
 df_raw = todas_abas[nomes_abas[0]]
-st.write("**Pré-visualização da primeira aba (primeiras 15 linhas):**")
-st.dataframe(df_raw.head(15), use_container_width=True)
 
-# --- Configuração do fornecedor ---
+with st.expander("👁️ Pré-visualização (primeiras 15 linhas)", expanded=False):
+    st.dataframe(df_raw.head(15), use_container_width=True)
+
+# ─── Configuração ────────────────────────────────────────────────────────────
 st.divider()
-st.subheader("2. Configuração")
+st.markdown('<div class="section-header">⚙️ Configuração</div>', unsafe_allow_html=True)
 
 col1, col2 = st.columns(2)
 
@@ -64,7 +126,6 @@ with col1:
     )
 
 # Recarregar todas as abas com header correto e concatenar
-# A primeira aba usa o header indicado; as demais usam os mesmos nomes de coluna
 dfs_abas = []
 df_primeira = pd.read_excel(arquivo_fornecedor, header=int(linha_header), sheet_name=nomes_abas[0])
 df_primeira.columns = [str(c).strip() for c in df_primeira.columns]
@@ -75,36 +136,32 @@ colunas_base = df_primeira.columns.drop("_aba_origem")
 
 for nome_aba in nomes_abas[1:]:
     df_aba = pd.read_excel(arquivo_fornecedor, header=None, sheet_name=nome_aba)
-    # Aplicar os mesmos nomes de coluna da primeira aba
     if len(df_aba.columns) >= len(colunas_base):
         df_aba = df_aba.iloc[:, :len(colunas_base)]
         df_aba.columns = colunas_base
     else:
-        # Se tiver menos colunas, usar os nomes disponíveis
         df_aba.columns = colunas_base[:len(df_aba.columns)]
     df_aba["_aba_origem"] = nome_aba
     dfs_abas.append(df_aba)
 
 df_forn = pd.concat(dfs_abas, ignore_index=True)
-
 colunas_forn = [c for c in df_forn.columns if c != "_aba_origem"]
 
 with col2:
     nome_fornecedor = st.text_input(
-        "Nome do fornecedor (para nome do arquivo)",
+        "Nome do fornecedor",
         value=arquivo_fornecedor.name.split(".")[0],
     )
 
 col3, col4, col5, col6 = st.columns(4)
 
 with col3:
-    col_codigo = st.selectbox("Coluna do CÓDIGO (referência)", options=colunas_forn)
+    col_codigo = st.selectbox("Coluna do CÓDIGO", options=colunas_forn)
 
 with col4:
     col_preco = st.selectbox("Coluna do PREÇO", options=colunas_forn)
 
 with col5:
-    # Caso o preço esteja separado em duas colunas (ex: "R$" em uma e valor em outra)
     usar_col_valor = st.checkbox("Valor em coluna separada?", value=False,
                                   help="Marque se o R$ está em uma coluna e o número em outra")
 
@@ -115,7 +172,7 @@ col_valor_separado = None
 if usar_col_valor:
     col_valor_separado = st.selectbox("Coluna com o VALOR numérico", options=colunas_forn)
 
-# --- Seleção do fabricante ---
+# ─── Seleção do fabricante ────────────────────────────────────────────────────
 fabricantes_doit = (
     df_doit[["Id do Fabricante", "Fabricante"]]
     .dropna(subset=["Id do Fabricante"])
@@ -131,52 +188,48 @@ fabricantes_doit["_label"] = (
 )
 
 fabricante_escolhido = st.selectbox(
-    "Fabricante (selecione o fornecedor correspondente no DOit):",
+    "🏭 Fabricante no DOit",
     options=fabricantes_doit["_label"].tolist(),
-    help="Escolha o fabricante cadastrado no DOit que corresponde a esta planilha.",
+    help="Selecione o fabricante cadastrado no DOit correspondente a esta planilha.",
 )
 
 idx_selecionado = fabricantes_doit["_label"].tolist().index(fabricante_escolhido)
 id_fabricante = fabricantes_doit.iloc[idx_selecionado]["Id do Fabricante"]
 
-st.write("**Planilha do fornecedor (com cabeçalho aplicado):**")
-st.dataframe(df_forn.head(10), use_container_width=True)
+with st.expander("📋 Planilha do fornecedor (com cabeçalho aplicado)", expanded=False):
+    st.dataframe(df_forn[colunas_forn].head(10), use_container_width=True)
 
 
-# --- Funções auxiliares ---
+# ─── Funções auxiliares ───────────────────────────────────────────────────────
 def parse_preco(valor):
     if pd.isna(valor):
         return None
     s = str(valor).strip()
-    # Remover R$, espaços extras
     s = s.replace("R$", "").replace("r$", "").strip()
     s = s.replace(" ", "")
     if not s:
         return None
 
-    # Formato brasileiro: 1.234,56 ou 1.234
     if "," in s:
-        # 1.234,56 -> remove ponto (milhar), troca vírgula por ponto (decimal)
         s = s.replace(".", "").replace(",", ".")
     elif "." in s:
         if s.count(".") > 1:
             s = s.replace(".", "")
         else:
-            # Um único ponto: verificar se é milhar ou decimal
             partes = s.split(".")
             if len(partes[1]) == 3:
-                s = s.replace(".", "")  # milhar
+                s = s.replace(".", "")
     try:
         return float(s)
     except ValueError:
         return None
 
 
-# --- Processamento ---
+# ─── Processamento ────────────────────────────────────────────────────────────
 st.divider()
-st.subheader("3. Resultado")
+st.markdown('<div class="section-header">🔄 Processamento</div>', unsafe_allow_html=True)
 
-if st.button("🔄 Processar", type="primary"):
+if st.button("▶️ Processar atualização", type="primary", use_container_width=True):
     # Limpar código do fornecedor
     df_forn["_codigo_limpo"] = df_forn[col_codigo].astype(str).str.strip()
     df_forn["_preco_limpo"] = df_forn[col_preco].apply(parse_preco)
@@ -203,13 +256,13 @@ if st.button("🔄 Processar", type="primary"):
     mask_nao_encontrado = ~df_forn_valido["_codigo_limpo"].isin(refs_doit)
     df_precisam_criar = df_forn_valido[mask_nao_encontrado].copy()
 
-    # Guardar no session_state para uso após seleção do fabricante
+    # Guardar no session_state
     st.session_state["df_merge_raw"] = df_merge
     st.session_state["df_forn_valido"] = df_forn_valido
     st.session_state["df_precisam_criar"] = df_precisam_criar
     st.session_state["processado"] = True
 
-# --- Seleção do fabricante e resultados ---
+# ─── Resultados ───────────────────────────────────────────────────────────────
 if st.session_state.get("processado", False):
     df_merge = st.session_state["df_merge_raw"]
     df_precisam_criar = st.session_state["df_precisam_criar"]
@@ -220,32 +273,29 @@ if st.session_state.get("processado", False):
 
     # Todos os produtos desse fabricante no Doit
     df_fabricante_doit = df_doit[df_doit["Id do Fabricante"] == id_fabricante].copy()
-    # Refs que foram atualizadas
     refs_atualizadas = set(df_merge["# Referência"].astype(str).str.strip()) if not df_merge.empty else set()
-    # Não atualizados = fabricante no Doit - atualizados
     df_nao_atualizados = df_fabricante_doit[
         ~df_fabricante_doit["# Referência"].isin(refs_atualizadas)
     ].copy()
 
-    # --- Cálculos ---
-    # Custo Líquido = Valor fornecedor * 1.10
-    # CUSTO (bruto) = Custo Líquido * (1 + IPI%)
+    # ─── Cálculos ─────────────────────────────────────────────────────────────
     ipi_fator = 1 + (ipi / 100)
 
     if not df_merge.empty:
         df_merge["_custo_liquido"] = (df_merge["_preco_limpo"] * 1.10).round(2)
         df_merge["_custo_bruto"] = (df_merge["_custo_liquido"] * ipi_fator).round(2)
 
-    # --- Métricas ---
-    st.success(f"✅ Processamento concluído!")
+    # ─── Métricas ─────────────────────────────────────────────────────────────
+    st.divider()
+    st.markdown('<div class="section-header">📊 Resultado</div>', unsafe_allow_html=True)
 
-    col_info1, col_info2, col_info3, col_info4 = st.columns(4)
-    col_info1.metric("Atualizados", len(df_merge))
-    col_info2.metric("Precisam ser criados", len(df_precisam_criar))
-    col_info3.metric("Não atualizados", len(df_nao_atualizados))
-    col_info4.metric("IPI", f"{ipi}%")
+    col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+    col_m1.metric("✅ Atualizados", f"{len(df_merge):,}")
+    col_m2.metric("🆕 Precisam ser criados", f"{len(df_precisam_criar):,}")
+    col_m3.metric("⚠️ Não atualizados", f"{len(df_nao_atualizados):,}")
+    col_m4.metric("📦 IPI", f"{ipi}%")
 
-    # --- Planilha 1: Modelo Custo para importação no DOit ---
+    # ─── Modelo Custo ─────────────────────────────────────────────────────────
     hoje = date.today().strftime("%d/%m/%Y")
 
     if not df_merge.empty:
@@ -266,8 +316,7 @@ if st.session_state.get("processado", False):
     else:
         df_modelo_custo = pd.DataFrame()
 
-    # --- Planilha 2: Relatório completo para o cliente ---
-    # Aba "Produtos DOit" - produtos do DOit atualizados (com preços novos)
+    # ─── Relatório ────────────────────────────────────────────────────────────
     if not df_merge.empty:
         df_produtos_doit = df_merge.drop(
             columns=["_codigo_limpo", "_preco_limpo", "_custo_liquido", "_custo_bruto"],
@@ -276,45 +325,55 @@ if st.session_state.get("processado", False):
     else:
         df_produtos_doit = pd.DataFrame()
 
-    # Aba "Produtos" - planilha do fornecedor original
     df_forn_valido = st.session_state["df_forn_valido"]
     df_produtos_forn = df_forn_valido.drop(
         columns=["_codigo_limpo", "_preco_limpo", "_aba_origem"], errors="ignore"
     )
 
-    # Aba "Precisam ser criados" - formato do fornecedor
     df_criar_saida = df_precisam_criar.drop(
         columns=["_codigo_limpo", "_preco_limpo", "_aba_origem"], errors="ignore"
     )
 
-    # --- Exibição ---
+    # ─── Tabs de visualização ─────────────────────────────────────────────────
     tab1, tab2, tab3, tab4 = st.tabs(
-        ["📋 Modelo Custo (DOit)", "✅ Atualizados", "🆕 Precisam ser criados", "⚠️ Não atualizados"]
+        ["📋 Modelo Custo", "✅ Atualizados", "🆕 Precisam ser criados", "⚠️ Não atualizados"]
     )
 
     with tab1:
-        st.dataframe(df_modelo_custo, use_container_width=True)
+        if not df_modelo_custo.empty:
+            st.dataframe(df_modelo_custo, use_container_width=True, height=400)
+        else:
+            st.info("Nenhum produto para atualizar.")
 
     with tab2:
         if not df_produtos_doit.empty:
             st.dataframe(
                 df_produtos_doit[["SKU", "# Referência", "Nome", "Preço"]],
                 use_container_width=True,
+                height=400,
             )
+        else:
+            st.info("Nenhum produto atualizado.")
 
     with tab3:
-        st.dataframe(df_criar_saida, use_container_width=True)
+        if not df_criar_saida.empty:
+            st.dataframe(df_criar_saida, use_container_width=True, height=400)
+        else:
+            st.info("Todos os produtos do fornecedor já existem no DOit.")
 
     with tab4:
         if not df_nao_atualizados.empty:
             st.dataframe(
                 df_nao_atualizados[["SKU", "# Referência", "Nome", "Preço"]],
                 use_container_width=True,
+                height=400,
             )
+        else:
+            st.info("Todos os produtos do fabricante foram atualizados.")
 
-    # --- Texto padrão para envio ---
+    # ─── Texto para o cliente ─────────────────────────────────────────────────
     st.divider()
-    st.subheader("4. Texto para o cliente")
+    st.markdown('<div class="section-header">💬 Texto para o cliente</div>', unsafe_allow_html=True)
 
     texto_padrao = (
         f"Referente a {nome_fornecedor}, os custos foram atualizados:\n\n"
@@ -324,32 +383,29 @@ if st.session_state.get("processado", False):
         f"Atualizado na Luminata 1 e 2."
     )
 
-    st.text_area("Copie e envie ao cliente:", value=texto_padrao, height=150)
+    st.text_area("Copie e envie ao cliente:", value=texto_padrao, height=140, label_visibility="collapsed")
 
-    # --- Downloads ---
+    # ─── Downloads ────────────────────────────────────────────────────────────
     st.divider()
-    st.subheader("5. Downloads")
+    st.markdown('<div class="section-header">📥 Downloads</div>', unsafe_allow_html=True)
 
     col_dl1, col_dl2 = st.columns(2)
 
-    # Download 1: Planilha para importação no DOit
     with col_dl1:
-        st.write("**Planilha para importação no DOit:**")
         buffer1 = BytesIO()
         with pd.ExcelWriter(buffer1, engine="xlsxwriter") as writer:
             df_modelo_custo.to_excel(writer, index=False, sheet_name="Modelo Custo")
         buffer1.seek(0)
 
         st.download_button(
-            label="📥 Baixar - Importação DOit",
+            label="📥 Importação DOit",
             data=buffer1,
             file_name=f"custo_doit_{nome_fornecedor}_{date.today().isoformat()}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True,
         )
 
-    # Download 2: Relatório completo para o cliente
     with col_dl2:
-        st.write("**Relatório completo para o cliente:**")
         buffer2 = BytesIO()
         with pd.ExcelWriter(buffer2, engine="xlsxwriter") as writer:
             if not df_produtos_doit.empty:
@@ -365,8 +421,14 @@ if st.session_state.get("processado", False):
         buffer2.seek(0)
 
         st.download_button(
-            label="📥 Baixar - Relatório Cliente",
+            label="📥 Relatório Cliente",
             data=buffer2,
             file_name=f"relatorio_{nome_fornecedor}_{date.today().isoformat()}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True,
         )
+
+# ─── Footer ───────────────────────────────────────────────────────────────────
+st.sidebar.divider()
+st.sidebar.caption(f"Última atualização: {date.today().strftime('%d/%m/%Y')}")
+st.sidebar.caption("DOit - Atualização de Custos v2.0")
