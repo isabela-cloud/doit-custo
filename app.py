@@ -191,8 +191,8 @@ if st.button("🔄 Processar", type="primary"):
     if not df_merge.empty:
         df_modelo_custo = pd.DataFrame(
             {
-                "SKU": df_merge["SKU"].astype(int).astype(str),
-                "FORNECEDOR": df_merge["Id do Fabricante"].astype(int).astype(str),
+                "SKU": df_merge["SKU"].fillna(0).astype(int).astype(str),
+                "FORNECEDOR": df_merge["Id do Fabricante"].fillna(0).astype(int).astype(str),
                 "NOME ORIGINAL": "",
                 "PART NUMBER": "",
                 "CONDIÇÃO": "DDP",
