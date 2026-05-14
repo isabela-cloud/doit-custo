@@ -65,7 +65,6 @@ st.markdown('<div class="section-header">📁 Upload da planilha do fornecedor</
 arquivo_fornecedor = st.file_uploader(
     "Arraste ou selecione a planilha (.xlsx, .xls)",
     type=["xlsx", "xls"],
-    label_visibility="collapsed",
 )
 
 if arquivo_fornecedor is None:
@@ -149,13 +148,32 @@ col_valor_separado = None
 if usar_col_valor:
     col_valor_separado = st.selectbox("Coluna com o VALOR numérico", options=colunas_forn)
 
-# Opção de normalização de códigos
-normalizar_codigos = st.checkbox(
-    "🔄 Normalizar códigos (remover acabamentos e hifens)",
-    value=False,
-    help="Ative para fornecedores que enviam códigos com sufixo de acabamento (ex: RI-H54414-1-BFM). "
-         "Remove acabamentos e hifens para compatibilizar com o DOit.",
-)
+# ─── Opções avançadas ─────────────────────────────────────────────────────────
+st.markdown('<div class="section-header">🔧 Opções de compatibilização</div>', unsafe_allow_html=True)
+
+col_opt1, col_opt2 = st.columns(2)
+
+with col_opt1:
+    normalizar_codigos = st.checkbox(
+        "🔄 Normalizar códigos (remover acabamentos e hifens)",
+        value=False,
+        help="Para fornecedores que enviam códigos com sufixo de acabamento (ex: RI-H54414-1-BFM).",
+    )
+
+with col_opt2:
+    concatenar_colunas = st.checkbox(
+        "🔗 Concatenar colunas para formar código",
+        value=False,
+        help="Para fornecedores onde o código está dividido em duas colunas (ex: Spotline: ID + primeira palavra da descrição).",
+    )
+
+col_concat_segunda = None
+if concatenar_colunas:
+    col_concat_segunda = st.selectbox(
+        "Segunda coluna (será extraída a primeira palavra e concatenada ao código)",
+        options=colunas_forn,
+        help="A primeira palavra desta coluna será unida ao código com hífen. Ex: ID=84, Descrição='385/2 PLAFON...' → 84-385-2",
+    )
 
 # ─── Seleção do fabricante ────────────────────────────────────────────────────
 fabricantes_doit = (
@@ -217,6 +235,21 @@ st.markdown('<div class="section-header">🔄 Processamento</div>', unsafe_allow
 if st.button("▶️ Processar atualização", type="primary", use_container_width=True):
     # Limpar código do fornecedor
     df_forn["_codigo_limpo"] = df_forn[col_codigo].astype(str).str.strip()
+
+    # Concatenar colunas se ativado (ex: Spotline: ID + primeira palavra da descrição)
+    if concatenar_colunas and col_concat_segunda:
+        def _extrair_primeira_palavra(val):
+            s = str(val).strip()
+            return s.split()[0] if s and s != "nan" else ""
+
+        df_forn["_segunda_parte"] = df_forn[col_concat_segunda].apply(_extrair_primeira_palavra)
+        # Concatenar: código + "-" + primeira palavra (com / trocado por -)
+        df_forn["_codigo_limpo"] = (
+            df_forn["_codigo_limpo"] + "-" + df_forn["_segunda_parte"].str.replace("/", "-", regex=False)
+        )
+        # Limpar casos onde uma das partes é vazia
+        df_forn["_codigo_limpo"] = df_forn["_codigo_limpo"].str.strip("-")
+
     df_forn["_preco_limpo"] = df_forn[col_preco].apply(parse_preco)
 
     # Remover linhas sem código ou preço válido
@@ -352,7 +385,7 @@ if st.session_state.get("processado", False):
     # ─── Relatório ────────────────────────────────────────────────────────────
     if not df_merge.empty:
         df_produtos_doit = df_merge.drop(
-            columns=["_codigo_limpo", "_preco_limpo", "_custo_liquido", "_custo_bruto", "_codigo_norm", "_ref_norm"],
+            columns=["_codigo_limpo", "_preco_limpo", "_custo_liquido", "_custo_bruto", "_codigo_norm", "_ref_norm", "_segunda_parte"],
             errors="ignore",
         )
     else:
@@ -360,11 +393,11 @@ if st.session_state.get("processado", False):
 
     df_forn_valido = st.session_state["df_forn_valido"]
     df_produtos_forn = df_forn_valido.drop(
-        columns=["_codigo_limpo", "_preco_limpo", "_aba_origem", "_codigo_norm"], errors="ignore"
+        columns=["_codigo_limpo", "_preco_limpo", "_aba_origem", "_codigo_norm", "_segunda_parte"], errors="ignore"
     )
 
     df_criar_saida = df_precisam_criar.drop(
-        columns=["_codigo_limpo", "_preco_limpo", "_aba_origem", "_codigo_norm"], errors="ignore"
+        columns=["_codigo_limpo", "_preco_limpo", "_aba_origem", "_codigo_norm", "_segunda_parte"], errors="ignore"
     )
 
     # ─── Tabs de visualização ─────────────────────────────────────────────────
