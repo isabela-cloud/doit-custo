@@ -155,7 +155,12 @@ if st.button("🔄 Processar", type="primary"):
     # Produtos do DOit daquele fornecedor que NÃO foram atualizados
     # (estão no DOit com esse fabricante, mas não vieram na planilha do fornecedor)
     if not df_merge.empty:
-        id_fabricante = df_merge["Id do Fabricante"].dropna().iloc[0]
+        # Identificar o fabricante correto pela moda (o que mais aparece no merge)
+        id_fabricante = df_merge["Id do Fabricante"].dropna().mode().iloc[0]
+
+        # Filtrar o merge para manter apenas produtos desse fabricante
+        df_merge = df_merge[df_merge["Id do Fabricante"] == id_fabricante].copy()
+
         # Todos os produtos desse fabricante no Doit
         df_fabricante_doit = df_doit[df_doit["Id do Fabricante"] == id_fabricante].copy()
         # Refs que foram atualizadas
