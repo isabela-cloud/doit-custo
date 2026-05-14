@@ -254,13 +254,14 @@ if st.button("▶️ Processar atualização", type="primary", use_container_wid
             lambda x: normalizar(remover_acabamento(x))
         )
 
-        # Normalizar referências do DOit: remover hifens
-        df_doit["_ref_norm"] = df_doit["# Referência"].apply(normalizar)
+        # Normalizar referências do DOit: remover hifens (usar cópia para não alterar cache)
+        df_doit_norm = df_doit.copy()
+        df_doit_norm["_ref_norm"] = df_doit_norm["# Referência"].apply(normalizar)
 
         # Cruzar usando códigos normalizados
         df_forn_unico = df_forn_valido.drop_duplicates(subset=["_codigo_norm"], keep="first")
 
-        df_merge = df_doit.merge(
+        df_merge = df_doit_norm.merge(
             df_forn_unico[["_codigo_norm", "_preco_limpo", "_codigo_limpo"]],
             left_on="_ref_norm",
             right_on="_codigo_norm",
@@ -268,12 +269,9 @@ if st.button("▶️ Processar atualização", type="primary", use_container_wid
         )
 
         # Produtos do fornecedor que NÃO estão no DOit
-        refs_doit_norm = set(df_doit["_ref_norm"])
+        refs_doit_norm = set(df_doit_norm["_ref_norm"])
         mask_nao_encontrado = ~df_forn_valido["_codigo_norm"].isin(refs_doit_norm)
         df_precisam_criar = df_forn_valido[mask_nao_encontrado].copy()
-
-        # Limpar coluna auxiliar
-        df_doit.drop(columns=["_ref_norm"], inplace=True, errors="ignore")
 
     else:
         # Cruzar com Doit pela referência (usar apenas 1 preço por código do fornecedor)
